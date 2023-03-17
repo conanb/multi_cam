@@ -3,69 +3,40 @@
 #include <nng/protocol/pubsub0/pub.h>
 #include <nng/protocol/pubsub0/sub.h>
 #include <vector>
+#include <set>
+#include <algorithm>
+
+int run_host(const std::string& tcp_address);
+int run_client(const std::string& tcp_address);
 
 int main(int argc, char* argv[]) {
 
-	std::vector<std::string> client_addresses;
+	std::vector<std::string> args;
+	for (int i = 0; i < argc; ++i)
+		args.push_back(argv[i]);
 
-	for (int i = 0; i < argc; ++i) {
-		if (strcmp(argv[i], "--clients") == 0) {
+	bool isClient = std::find(args.begin(), args.end(), std::string("--client")) != args.end();
 
-			// split clients by ,
+	std::string address = "127.0.0.1";
+	int port = 7788;
 
-		}
+	auto address_iter = std::find(args.begin(), args.end(), std::string("--address"));
+	if (address_iter != args.end()) {
+		address_iter++;
+		address = *address_iter;
 	}
 
-	// open socket to receive record commands
-
-	std::vector<cv::VideoCapture> cams;
-	std::vector<cv::VideoWriter> files;
-
-	while (true) {
-
-		int idx = cams.size();
-
-		cv::VideoCapture cam(idx, cv::CAP_DSHOW);
-
-		if (!cam.isOpened()) {
-			break;
-		}
-
-		cams.emplace_back(cam);
-
-		int width = (int)cam.get(cv::CAP_PROP_FRAME_WIDTH);
-		int height = (int)cam.get(cv::CAP_PROP_FRAME_HEIGHT);
-
-		auto file_path = std::format("cam_{}.avi", idx);
-		if (idx < 10)
-			file_path = std::format("cam_0{}.avi", idx);
-		
-		files.push_back(cv::VideoWriter(file_path, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 15, cv::Size(width, height)));
+	auto port_iter = std::find(args.begin(), args.end(), std::string("--port"));
+	if (port_iter != args.end()) {
+		port_iter++;
+		port = std::atoi(port_iter->c_str());
 	}
 
-	std::vector<cv::Mat> frames(cams.size());
+	auto tcp_address = std::format("tcp://{}:{}", address, port);
 
-	std::cout << "All cameras open!" << std::endl;
+	if (isClient)
+		return run_client(tcp_address);
+	else
+		return run_host(tcp_address);
 
-	while (true) {
-
-		for (int j = 0; auto & cam : cams) {
-
-			cam.read(frames[j]);
-			files[j].write(frames[j]);
-			cv::imshow(std::format("Cam {}", j), frames[j]);
-			j++;
-		}
-
-		if (cv::waitKey(33) == 'q')
-			break;
-	}
-
-	for (auto& file : files)
-		file.release();
-
-	for (auto& cam : cams)
-		cam.release();
-
-	cv::destroyAllWindows();
 }
